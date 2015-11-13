@@ -1,0 +1,10 @@
+*.suo
+*.user
+
+_ReSharper.Caches
+
+Debug
+Release
+
+CGAL_StraightSkeleton_Dotnet/bin
+CGAL_StraightSkeleton_Dotnet/obj
