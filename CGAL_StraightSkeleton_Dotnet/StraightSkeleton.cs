@@ -6,12 +6,13 @@ using System.Runtime.InteropServices;
 
 namespace CGAL_StraightSkeleton_Dotnet
 {
-    public class StraightSkeleton
+    public sealed class StraightSkeleton
+        : IDisposable
     {
         private readonly HashSet<Vector2> _inputVertices;
+        private readonly IntPtr _opaqueHandle;
 
         private readonly HashSet<KeyValuePair<Vector2, Vector2>> _borders;
-
         /// <summary>
         /// Edges around the outside of the shape
         /// </summary>
@@ -21,7 +22,6 @@ namespace CGAL_StraightSkeleton_Dotnet
         }
 
         private readonly HashSet<KeyValuePair<Vector2, Vector2>> _spokes;
-
         /// <summary>
         /// Edges connecting outside of shape to the skeleton
         /// </summary>
@@ -31,7 +31,6 @@ namespace CGAL_StraightSkeleton_Dotnet
         }
 
         private readonly HashSet<KeyValuePair<Vector2, Vector2>> _skeleton;
-
         /// <summary>
         /// The spine of the skeleton
         /// </summary>
@@ -40,12 +39,13 @@ namespace CGAL_StraightSkeleton_Dotnet
             get { return _skeleton; }
         }
 
-        private StraightSkeleton(HashSet<Vector2> inputVertices, HashSet<KeyValuePair<Vector2, Vector2>> borders, HashSet<KeyValuePair<Vector2, Vector2>> spokes, HashSet<KeyValuePair<Vector2, Vector2>> skeleton)
+        private StraightSkeleton(HashSet<Vector2> inputVertices, HashSet<KeyValuePair<Vector2, Vector2>> borders, HashSet<KeyValuePair<Vector2, Vector2>> spokes, HashSet<KeyValuePair<Vector2, Vector2>> skeleton, IntPtr opaqueHandle)
         {
             _inputVertices = inputVertices;
             _borders = borders;
             _spokes = spokes;
             _skeleton = skeleton;
+            _opaqueHandle = opaqueHandle;
         }
 
         //public string ToSvg()
@@ -82,6 +82,7 @@ namespace CGAL_StraightSkeleton_Dotnet
 
             //Variable to hold results
             Poly result;
+            IntPtr handle = IntPtr.Zero;
             try
             {
                 unsafe
@@ -105,13 +106,13 @@ namespace CGAL_StraightSkeleton_Dotnet
                         if (holePolys.Length > 0)
                         {
                             fixed (Poly* holesPtr = &holePolys[0])
-                                GenerateStraightSkeleton(&outerPoly, holesPtr, holes.Length, &result);
+                                handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, holesPtr, holes.Length, &result));
                         }
                         else
-                            GenerateStraightSkeleton(&outerPoly, null, 0, &result);
+                            handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, null, 0, &result));
                     }
 
-                    return ExtractResult(outer, holes, &result);
+                    return ExtractResult(outer, holes, &result, handle);
                 }
             }
             finally
@@ -124,7 +125,7 @@ namespace CGAL_StraightSkeleton_Dotnet
             }
         }
 
-        private static unsafe StraightSkeleton ExtractResult(Vector2[] outer, Vector2[][] holes, Poly* result)
+        private static unsafe StraightSkeleton ExtractResult(Vector2[] outer, Vector2[][] holes, Poly* result, IntPtr handle)
         {
             //Set of all vertices supplied as input
             var inputVertices = new HashSet<Vector2>(outer);
@@ -167,7 +168,7 @@ namespace CGAL_StraightSkeleton_Dotnet
                 }
             }
 
-            return new StraightSkeleton(inputVertices, borders, spokes, skeleton);
+            return new StraightSkeleton(inputVertices, borders, spokes, skeleton, handle);
         }
 
         private static KeyValuePair<Vector2, Vector2> OrderByHash(Vector2 a, Vector2 b)
@@ -209,10 +210,16 @@ namespace CGAL_StraightSkeleton_Dotnet
         }
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
-        private static extern unsafe float GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* result);
+        private static extern unsafe void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* result);
+
+        [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
+        private static extern unsafe void GenerateOffsetPolygon(void* outer, float distance);
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
         private static extern unsafe void FreePolygonStructMembers(Poly* result);
+
+        [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
+        private static extern unsafe void FreeResultHandle(void* result);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct Point2
@@ -239,6 +246,33 @@ namespace CGAL_StraightSkeleton_Dotnet
             {
                 Vertices = vertices;
                 VerticesLength = verticesLength;
+            }
+        }
+        #endregion
+
+        #region disposal
+        ~StraightSkeleton()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                //Dispose managed resources
+            }
+
+            //Dispose unmanaged
+            unsafe
+            {
+                FreeResultHandle(_opaqueHandle.ToPointer());
             }
         }
         #endregion

@@ -33,6 +33,16 @@ struct Poly
 	int verticesCount;
 };
 
+struct SkeletonHandle
+{
+	SsPtr Skeleton;
+
+	SkeletonHandle(SsPtr ptr)
+	{
+		Skeleton = ptr;
+	}
+};
+
 Polygon_2 CreatePolygon(float* vertices, int length)
 {
 	Polygon_2 result;
@@ -49,7 +59,7 @@ Polygon_2 CreatePolygon(float* vertices, int length)
 	return result;
 }
 
-extern "C" __declspec(dllexport) float GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* straightSkeleton)
+extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* straightSkeleton)
 {
 	//Construct outer polygon (no holes yet)
 	Polygon_with_holes poly(CreatePolygon(outer->vertices, outer->verticesCount));
@@ -84,7 +94,16 @@ extern "C" __declspec(dllexport) float GenerateStraightSkeleton(Poly* outer, Pol
 		index++;
 	}
 
-	return longest;
+	//Create a handle for the result (effectively "leak" the skeleton out to C#)
+	auto handle = new SkeletonHandle(iss);
+	return (void*)handle;
+}
+
+extern "C" __declspec(dllexport) void GenerateOffsetPolygon(void* opaqueHandle, float distance)
+{
+	SkeletonHandle* handle = (SkeletonHandle*)opaqueHandle;
+
+	//not implemented!
 }
 
 extern "C" __declspec(dllexport) void FreePolygonStructMembers(Poly* poly)
@@ -93,4 +112,13 @@ extern "C" __declspec(dllexport) void FreePolygonStructMembers(Poly* poly)
 
 	poly->vertices = nullptr;
 	poly->verticesCount = 0;
+}
+
+extern "C" __declspec(dllexport) void FreeResultHandle(void* opaqueHandle)
+{
+	if (opaqueHandle != nullptr)
+	{
+		SkeletonHandle* handle = (SkeletonHandle*)opaqueHandle;
+		delete handle;
+	}
 }
