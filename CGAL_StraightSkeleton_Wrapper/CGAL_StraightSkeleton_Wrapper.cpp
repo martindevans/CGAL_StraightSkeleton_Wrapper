@@ -8,6 +8,8 @@
 #include<CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include<CGAL/Polygon_with_holes_2.h>
 #include<CGAL/create_straight_skeleton_from_polygon_with_holes_2.h>
+#include<CGAL/Polygon_2.h>
+#include<CGAL/create_offset_polygons_2.h>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 
@@ -21,6 +23,9 @@ typedef boost::shared_ptr<Ss> SsPtr;
 typedef Ss::Vertex_const_handle		Vertex_const_handle;
 typedef Ss::Halfedge_const_handle	Halfedge_const_handle;
 typedef Ss::Halfedge_const_iterator	Halfedge_const_iterator;
+
+typedef boost::shared_ptr<Polygon_2> PolygonPtr;
+typedef std::vector<PolygonPtr> PolygonPtrVector;
 
 struct Poly
 {
@@ -44,7 +49,7 @@ Polygon_2 CreatePolygon(float* vertices, int length)
 	return result;
 }
 
-extern "C" __declspec(dllexport) void GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* straightSkeleton)
+extern "C" __declspec(dllexport) float GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* straightSkeleton)
 {
 	//Construct outer polygon (no holes yet)
 	Polygon_with_holes poly(CreatePolygon(outer->vertices, outer->verticesCount));
@@ -61,7 +66,8 @@ extern "C" __declspec(dllexport) void GenerateStraightSkeleton(Poly* outer, Poly
 	straightSkeleton->verticesCount = ss.size_of_halfedges() * 2 * 2;	// edges * 2 (start and end) * 2 (X and Y)
 	straightSkeleton->vertices = new float[straightSkeleton->verticesCount];
 
-	//Copy vertex pairs
+	//Copy vertex pairs (also measure the longest edge while we're at it)
+	float longest = 0;
 	int index = 0;
 	for (Halfedge_const_iterator i = ss.halfedges_begin(); i != ss.halfedges_end(); ++i)
 	{
@@ -73,8 +79,12 @@ extern "C" __declspec(dllexport) void GenerateStraightSkeleton(Poly* outer, Poly
 		straightSkeleton->vertices[index * 4 + 2] = end.x();
 		straightSkeleton->vertices[index * 4 + 3] = end.y();
 
+		longest = fmaxf(sqrtf(powf(end.x() - start.x() + end.y() - start.y(), 2)), longest);
+
 		index++;
 	}
+
+	return longest;
 }
 
 extern "C" __declspec(dllexport) void FreePolygonStructMembers(Poly* poly)
