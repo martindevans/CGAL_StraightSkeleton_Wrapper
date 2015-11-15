@@ -9,7 +9,6 @@ namespace CGAL_StraightSkeleton_Dotnet
     public sealed class StraightSkeleton
         : IDisposable
     {
-        private readonly HashSet<Vector2> _inputVertices;
         private readonly IntPtr _opaqueHandle;
 
         private readonly HashSet<KeyValuePair<Vector2, Vector2>> _borders;
@@ -18,7 +17,7 @@ namespace CGAL_StraightSkeleton_Dotnet
         /// </summary>
         public IEnumerable<KeyValuePair<Vector2, Vector2>> Borders
         {
-            get { return _spokes; }
+            get { return _borders; }
         }
 
         private readonly HashSet<KeyValuePair<Vector2, Vector2>> _spokes;
@@ -41,15 +40,17 @@ namespace CGAL_StraightSkeleton_Dotnet
 
         private StraightSkeleton(HashSet<Vector2> inputVertices, HashSet<KeyValuePair<Vector2, Vector2>> borders, HashSet<KeyValuePair<Vector2, Vector2>> spokes, HashSet<KeyValuePair<Vector2, Vector2>> skeleton, IntPtr opaqueHandle)
         {
-            _inputVertices = inputVertices;
             _borders = borders;
             _spokes = spokes;
             _skeleton = skeleton;
             _opaqueHandle = opaqueHandle;
         }
 
-        public void Offset(float distance)
+        public IEnumerable<IReadOnlyList<Vector2>> Offset(float distance)
         {
+            if (distance <= 0)
+                throw new ArgumentOutOfRangeException("distance", "distance must be > 0");
+
             unsafe
             {
                 //Generate result
@@ -57,13 +58,23 @@ namespace CGAL_StraightSkeleton_Dotnet
 
                 try
                 {
-                    //Extract result items from array
                     var polygons = (Poly*)result.Start.ToPointer();
+                    var results = new Vector2[result.Items][];
 
-                    for (int i = 0; i < result.Items; i++)
+                    //Copy data from native memory into array of polygons
+                    for (var i = 0; i < result.Items; i++)
                     {
                         var polygon = &polygons[i];
+
+                        //Copy data into array
+                        var polyVerts = new Vector2[polygon->VerticesLength];
+                        for (var v = 0; v < polygon->VerticesLength; v++)
+                            polyVerts[v] = new Vector2(polygon->Vertices[v * 2], polygon->Vertices[v * 2 + 1]);
+
+                        results[i] = polyVerts;
                     }
+
+                    return results;
                 }
                 finally
                 {
@@ -71,21 +82,6 @@ namespace CGAL_StraightSkeleton_Dotnet
                 }
             }
         }
-
-        //public string ToSvg()
-        //{
-        //    //Extract data from result
-        //    var svg = new StringBuilder();
-        //    svg.Append("<svg width=\"1000\" height=\"1000\"><g transform=\"translate(210, 210)\"><path stroke=\"black\" d=\"");
-        //    foreach (var edge in spokes)
-        //        svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
-        //    foreach (var edge in skeleton)
-        //        svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
-        //    foreach (var edge in borders)
-        //        svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
-        //    svg.Append("\"></path></g></svg>");
-        //    Console.WriteLine(svg);
-        //}
 
         #region generation
         private static readonly Vector2[][] _noHoles = new Vector2[0][];
@@ -106,11 +102,12 @@ namespace CGAL_StraightSkeleton_Dotnet
 
             //Variable to hold results
             Poly result;
-            IntPtr handle = IntPtr.Zero;
             try
             {
                 unsafe
                 {
+                    IntPtr handle;
+
                     //Fix a pointer to the start of the points array
                     fixed (Point2* pointsPtr = &points[0])
                     {
