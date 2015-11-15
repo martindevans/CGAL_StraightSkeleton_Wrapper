@@ -48,6 +48,30 @@ namespace CGAL_StraightSkeleton_Dotnet
             _opaqueHandle = opaqueHandle;
         }
 
+        public void Offset(float distance)
+        {
+            unsafe
+            {
+                //Generate result
+                var result = GenerateOffsetPolygon(_opaqueHandle.ToPointer(), distance);
+
+                try
+                {
+                    //Extract result items from array
+                    var polygons = (Poly*)result.Start.ToPointer();
+
+                    for (int i = 0; i < result.Items; i++)
+                    {
+                        var polygon = &polygons[i];
+                    }
+                }
+                finally
+                {
+                    FreePolyArray(result);
+                }
+            }
+        }
+
         //public string ToSvg()
         //{
         //    //Extract data from result
@@ -213,13 +237,23 @@ namespace CGAL_StraightSkeleton_Dotnet
         private static extern unsafe void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* result);
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
-        private static extern unsafe void GenerateOffsetPolygon(void* outer, float distance);
+        private static extern unsafe PolyArray GenerateOffsetPolygon(void* outer, float distance);
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
         private static extern unsafe void FreePolygonStructMembers(Poly* result);
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
         private static extern unsafe void FreeResultHandle(void* result);
+
+        [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
+        private static extern unsafe void FreePolyArray(PolyArray handle);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PolyArray
+        {
+            public readonly int Items;
+            public readonly IntPtr Start;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct Point2

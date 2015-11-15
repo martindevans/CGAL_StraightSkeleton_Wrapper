@@ -2,8 +2,7 @@
 //
 
 #include "stdafx.h"
-
-
+#include<vector>
 #include<boost/shared_ptr.hpp>
 #include<CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include<CGAL/Polygon_with_holes_2.h>
@@ -33,6 +32,12 @@ struct Poly
 	int verticesCount;
 };
 
+struct PolyArray
+{
+	int length;
+	Poly* start;
+};
+
 struct SkeletonHandle
 {
 	SsPtr Skeleton;
@@ -59,7 +64,7 @@ Polygon_2 CreatePolygon(float* vertices, int length)
 	return result;
 }
 
-extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* straightSkeleton)
+extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* outStraightSkeleton)
 {
 	//Construct outer polygon (no holes yet)
 	Polygon_with_holes poly(CreatePolygon(outer->vertices, outer->verticesCount));
@@ -73,8 +78,8 @@ extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Pol
 	Ss& ss = *iss;
 
 	//Create result
-	straightSkeleton->verticesCount = ss.size_of_halfedges() * 2 * 2;	// edges * 2 (start and end) * 2 (X and Y)
-	straightSkeleton->vertices = new float[straightSkeleton->verticesCount];
+	outStraightSkeleton->verticesCount = ss.size_of_halfedges() * 2 * 2;	// edges * 2 (start and end) * 2 (X and Y)
+	outStraightSkeleton->vertices = new float[outStraightSkeleton->verticesCount];
 
 	//Copy vertex pairs (also measure the longest edge while we're at it)
 	float longest = 0;
@@ -84,10 +89,10 @@ extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Pol
 		auto start = i->vertex()->point();
 		auto end = i->next()->vertex()->point();
 
-		straightSkeleton->vertices[index * 4] = start.x();
-		straightSkeleton->vertices[index * 4 + 1] = start.y();
-		straightSkeleton->vertices[index * 4 + 2] = end.x();
-		straightSkeleton->vertices[index * 4 + 3] = end.y();
+		outStraightSkeleton->vertices[index * 4] = start.x();
+		outStraightSkeleton->vertices[index * 4 + 1] = start.y();
+		outStraightSkeleton->vertices[index * 4 + 2] = end.x();
+		outStraightSkeleton->vertices[index * 4 + 3] = end.y();
 
 		longest = fmaxf(sqrtf(powf(end.x() - start.x() + end.y() - start.y(), 2)), longest);
 
@@ -99,19 +104,48 @@ extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Pol
 	return (void*)handle;
 }
 
-extern "C" __declspec(dllexport) void GenerateOffsetPolygon(void* opaqueHandle, float distance)
+extern "C" __declspec(dllexport) PolyArray GenerateOffsetPolygon(void* opaqueHandle, float distance)
 {
 	SkeletonHandle* handle = (SkeletonHandle*)opaqueHandle;
+	Ss& ss = *(handle->Skeleton);
 
-	//not implemented!
+	PolygonPtrVector offset_polygons = CGAL::create_offset_polygons_2<Polygon_2>(distance, ss);
+
+	PolyArray result;
+	result.length = offset_polygons.size();
+	result.start = new Poly[offset_polygons.size()];
+
+	for (int i = 0; i < offset_polygons.size(); i++)
+	{
+		//Get some handy pointers (copy from/copy to)
+		PolygonPtr polygon = offset_polygons[i];
+		Poly* resultPoly = &result.start[i];
+
+		//Create the destination to put the results into
+		resultPoly->verticesCount = polygon->size();
+		resultPoly->vertices = new float[resultPoly->verticesCount * 2];
+
+		//Copy the vertices
+		for (int v = 0; v < polygon->size(); v++)
+		{
+			Point point = polygon->vertex(v);
+			resultPoly->vertices[v * 2] = point.x();
+			resultPoly->vertices[v * 2 + 1] = point.y();
+		}
+	}
+
+	return result;
 }
 
 extern "C" __declspec(dllexport) void FreePolygonStructMembers(Poly* poly)
 {
-	delete poly->vertices;
+	if (poly != nullptr)
+	{
+		delete poly->vertices;
 
-	poly->vertices = nullptr;
-	poly->verticesCount = 0;
+		poly->vertices = nullptr;
+		poly->verticesCount = 0;
+	}
 }
 
 extern "C" __declspec(dllexport) void FreeResultHandle(void* opaqueHandle)
@@ -120,5 +154,16 @@ extern "C" __declspec(dllexport) void FreeResultHandle(void* opaqueHandle)
 	{
 		SkeletonHandle* handle = (SkeletonHandle*)opaqueHandle;
 		delete handle;
+	}
+}
+
+extern "C" __declspec(dllexport) void FreePolyArray(PolyArray handle)
+{
+	if (handle.start != nullptr)
+	{
+		for (int i = 0; i < handle.length; i++)
+			FreePolygonStructMembers(&handle.start[i]);
+
+		delete handle.start;
 	}
 }

@@ -15,7 +15,7 @@ namespace ConsoleTest
             Stopwatch w = new Stopwatch();
             w.Start();
 
-            StraightSkeleton.Generate(new Vector2[] {
+            var ssk = StraightSkeleton.Generate(new Vector2[] {
                 new Vector2(-10, 10),
                 new Vector2(10, 10),
                 new Vector2(10, -2),
@@ -36,6 +36,8 @@ namespace ConsoleTest
             Console.WriteLine();
             Console.Title = string.Format("Elapsed: {0}ms", w.ElapsedMilliseconds);
             Console.ReadLine();
+
+            ssk.Offset(3);
         }
 
         [DllImport("Kernel32.dll")]
