@@ -19,7 +19,7 @@
     <file src="CGAL-vc120-mt-gd-4.7.dll" target="content" />
     <file src="libgmp-10.dll" target="content" />
     <file src="libmpfr-4.dll" target="content" />
-    <file src="../Debug/CGAL_StraightSkeleton_Wrapper.dll" target="content" />
+    <file src="bin/x86/Release/CGAL_StraightSkeleton_Wrapper.dll" target="content" />
 
     <file src="install.ps1" target="tools" />
   </files>
