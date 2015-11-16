@@ -1,9 +1,7 @@
 ﻿using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Text;
 using CGAL_StraightSkeleton_Dotnet;
 
@@ -71,20 +69,6 @@ namespace ConsoleTest
             Console.Title = string.Format("Elapsed: {0}ms {1}ms", w.ElapsedMilliseconds, w2.ElapsedMilliseconds);
 
             Console.ReadLine();
-        }
-
-        [DllImport("Kernel32.dll")]
-        private static extern IntPtr LoadLibrary(string path);
-
-        private static void Load(string path)
-        {
-            var lib = LoadLibrary(path);
-            Console.WriteLine("{1}\t\t\t{0}", path, LoadLibrary(path));
-            if (lib == IntPtr.Zero)
-            {
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-                //Console.WriteLine(" --- ERROR: {0}", Marshal.GetLastWin32Error());
-            }
         }
     }
 }

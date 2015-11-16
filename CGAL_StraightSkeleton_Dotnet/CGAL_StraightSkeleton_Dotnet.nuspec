@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <authors>Martin Evans</authors>
+    <owners>Martin Evans</owners>
+    <licenseUrl>https://github.com/martindevans/SupersonicSound/blob/master/LICENSE.md</licenseUrl>
+    <projectUrl>https://github.com/martindevans/SupersonicSound</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <copyright>Copyright 2015</copyright>
+  </metadata>
+  <files>
+    <file src="boost_chrono-vc120-mt-gd-1_59.dll" target="content" />
+    <file src="boost_system-vc120-mt-gd-1_59.dll" target="content" />
+    <file src="boost_thread-vc120-mt-gd-1_59.dll" target="content" />
+    <file src="CGAL_Core-vc120-mt-gd-4.7.dll" target="content" />
+    <file src="CGAL-vc120-mt-gd-4.7.dll" target="content" />
+    <file src="libgmp-10.dll" target="content" />
+    <file src="libmpfr-4.dll" target="content" />
+    <file src="../Debug/CGAL_StraightSkeleton_Wrapper.dll" target="content" />
+
+    <file src="install.ps1" target="tools" />
+  </files>
+</package>
