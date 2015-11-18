@@ -92,7 +92,7 @@ namespace CGAL_StraightSkeleton_Dotnet
         /// <param name="outer">clockwise wound points indicating the outside of the shape</param>
         /// <param name="holes">clockwise wound points indicating the holes in the shape (or null, if there are no holes)</param>
         /// <returns></returns>
-        public static StraightSkeleton Generate(Vector2[] outer, Vector2[][] holes = null)
+        public static StraightSkeleton Generate(IReadOnlyList<Vector2> outer, IReadOnlyList<IReadOnlyList<Vector2>> holes = null)
         {
             //sanity checks
             holes = SanityCheck(outer, holes);
@@ -112,22 +112,22 @@ namespace CGAL_StraightSkeleton_Dotnet
                     fixed (Point2* pointsPtr = &points[0])
                     {
                         //Outer polygon
-                        var outerPoly = new Poly((float*)pointsPtr, outer.Length);
+                        var outerPoly = new Poly((float*)pointsPtr, outer.Count);
 
                         //Holes
-                        var holePolys = new Poly[holes.Length];
-                        var holeStartIndex = outer.Length;
-                        for (var i = 0; i < holes.Length; i++)
+                        var holePolys = new Poly[holes.Count];
+                        var holeStartIndex = outer.Count;
+                        for (var i = 0; i < holes.Count; i++)
                         {
-                            holePolys[i] = new Poly((float*)(&pointsPtr[holeStartIndex]), holes[i].Length);
-                            holeStartIndex += holes[i].Length;
+                            holePolys[i] = new Poly((float*)(&pointsPtr[holeStartIndex]), holes[i].Count);
+                            holeStartIndex += holes[i].Count;
                         }
 
                         //Generate skeleton
                         if (holePolys.Length > 0)
                         {
                             fixed (Poly* holesPtr = &holePolys[0])
-                                handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, holesPtr, holes.Length, &result));
+                                handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, holesPtr, holes.Count, &result));
                         }
                         else
                             handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, null, 0, &result));
@@ -146,7 +146,7 @@ namespace CGAL_StraightSkeleton_Dotnet
             }
         }
 
-        private static unsafe StraightSkeleton ExtractResult(Vector2[] outer, Vector2[][] holes, Poly* result, IntPtr handle)
+        private static unsafe StraightSkeleton ExtractResult(IReadOnlyList<Vector2> outer, IReadOnlyList<IReadOnlyList<Vector2>> holes, Poly* result, IntPtr handle)
         {
             //Set of all vertices supplied as input
             var inputVertices = new HashSet<Vector2>(outer);
@@ -204,25 +204,25 @@ namespace CGAL_StraightSkeleton_Dotnet
                 return new KeyValuePair<Vector2, Vector2>(b, a);
         }
 
-        private static Point2[] CopyData(Vector2[] outer, Vector2[][] holes)
+        private static Point2[] CopyData(IReadOnlyList<Vector2> outer, IReadOnlyList<IReadOnlyList<Vector2>> holes)
         {
-            var points = new Point2[outer.Length + holes.Sum(h => h.Length)];
+            var points = new Point2[outer.Count + holes.Sum(h => h.Count)];
             var index = 0;
 
             //Copy points backwards (because CGAL wants them counter-clowise, but we supply them clockwise)
-            for (var i = outer.Length - 1; i >= 0; i--)
+            for (var i = outer.Count - 1; i >= 0; i--)
                 points[index++] = new Point2(outer[i].X, outer[i].Y);
 
             //Points are copied forward here, because holes are supplied to us clockwise wound and CGAL wants them clockwise
             foreach (var hole in holes)
             {
-                for (var j = 0; j < hole.Length; j++)
+                for (var j = 0; j < hole.Count; j++)
                     points[index++] = new Point2(hole[j].X, hole[j].Y);
             }
             return points;
         }
 
-        private static Vector2[][] SanityCheck(Vector2[] outer, Vector2[][] holes)
+        private static IReadOnlyList<IReadOnlyList<Vector2>>  SanityCheck(IReadOnlyList<Vector2> outer, IReadOnlyList<IReadOnlyList<Vector2>> holes)
         {
             if (outer == null)
                 throw new ArgumentNullException("outer");
