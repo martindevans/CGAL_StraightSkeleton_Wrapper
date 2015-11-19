@@ -11,39 +11,71 @@ namespace CGAL_StraightSkeleton_Dotnet
     {
         private readonly IntPtr _opaqueHandle;
 
-        private readonly HashSet<KeyValuePair<Vector2, Vector2>> _borders;
+        private readonly HashSet<Edge> _borders;
         /// <summary>
         /// Edges around the outside of the shape
         /// </summary>
-        public IEnumerable<KeyValuePair<Vector2, Vector2>> Borders
+        public IEnumerable<Edge> Borders
         {
             get { return _borders; }
         }
 
-        private readonly HashSet<KeyValuePair<Vector2, Vector2>> _spokes;
+        private readonly HashSet<Edge> _spokes;
         /// <summary>
         /// Edges connecting outside of shape to the skeleton
         /// </summary>
-        public IEnumerable<KeyValuePair<Vector2, Vector2>> Spokes
+        public IEnumerable<Edge> Spokes
         {
             get { return _spokes; }
         }
 
-        private readonly HashSet<KeyValuePair<Vector2, Vector2>> _skeleton;
+        private readonly HashSet<Edge> _skeleton;
         /// <summary>
         /// The spine of the skeleton
         /// </summary>
-        public IEnumerable<KeyValuePair<Vector2, Vector2>> Skeleton
+        public IEnumerable<Edge> Skeleton
         {
             get { return _skeleton; }
         }
 
         private StraightSkeleton(HashSet<Vector2> inputVertices, HashSet<KeyValuePair<Vector2, Vector2>> borders, HashSet<KeyValuePair<Vector2, Vector2>> spokes, HashSet<KeyValuePair<Vector2, Vector2>> skeleton, IntPtr opaqueHandle)
         {
-            _borders = borders;
-            _spokes = spokes;
-            _skeleton = skeleton;
             _opaqueHandle = opaqueHandle;
+
+            Initialize(borders, spokes, skeleton, out _borders, out _spokes, out _skeleton);
+        }
+
+        private static void Initialize(IEnumerable<KeyValuePair<Vector2, Vector2>> borders, IEnumerable<KeyValuePair<Vector2, Vector2>> spokes, IEnumerable<KeyValuePair<Vector2, Vector2>> skeleton, out HashSet<Edge> outBorders, out HashSet<Edge> outSpokes, out HashSet<Edge> outSkeleton)
+        {
+            //Setup result collections
+            outBorders = new HashSet<Edge>();
+            outSkeleton = new HashSet<Edge>();
+            outSpokes = new HashSet<Edge>();
+
+            //setup collection of vertices and a way to lazily construct them
+            var vertices = new Dictionary<Vector2, Vertex>();
+            Func<Vector2, Vertex> getOrCreate = p =>
+            {
+                Vertex v;
+                if (!vertices.TryGetValue(p, out v))
+                {
+                    v = new Vertex(p);
+                    vertices.Add(p, v);
+                }
+                return v;
+            };
+
+            //Connect around border
+            foreach (var border in borders)
+                outBorders.Add(Edge.Create(getOrCreate(border.Key), getOrCreate(border.Value), EdgeType.Border));
+
+            //Connect along spokes
+            foreach (var spoke in spokes)
+                outSpokes.Add(Edge.Create(getOrCreate(spoke.Key), getOrCreate(spoke.Value), EdgeType.Spoke));
+
+            //Connect along skeleton
+            foreach (var skele in skeleton)
+                outSkeleton.Add(Edge.Create(getOrCreate(skele.Key), getOrCreate(skele.Value), EdgeType.Skeleton));
         }
 
         public IEnumerable<IReadOnlyList<Vector2>> Offset(float distance)

@@ -58,7 +58,7 @@ namespace ConsoleTest
             //foreach (var edge in ssk.Spokes)
             //    svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
             foreach (var edge in ssk.Skeleton)
-                svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
+                svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Start.Position.X * 10, edge.Start.Position.Y * 10, edge.End.Position.X * 10, edge.End.Position.Y * 10));
             //foreach (var edge in ssk.Borders)
             //    svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
             svg.Append("\"></path>");
