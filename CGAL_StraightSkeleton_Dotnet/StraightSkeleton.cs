@@ -78,6 +78,16 @@ namespace CGAL_StraightSkeleton_Dotnet
                 outSkeleton.Add(Edge.Create(getOrCreate(skele.Key), getOrCreate(skele.Value), EdgeType.Skeleton));
         }
 
+        public void CloneGraph(out HashSet<Edge> outBorders, out HashSet<Edge> outSpokes, out HashSet<Edge> outSkeleton)
+        {
+            Initialize(
+                _borders.Select(a => new KeyValuePair<Vector2, Vector2>(a.Start.Position, a.End.Position)),
+                _spokes.Select(a => new KeyValuePair<Vector2, Vector2>(a.Start.Position, a.End.Position)),
+                _skeleton.Select(a => new KeyValuePair<Vector2, Vector2>(a.Start.Position, a.End.Position)),
+                out outBorders, out outSpokes, out outSkeleton
+            );
+        }
+
         public IEnumerable<IReadOnlyList<Vector2>> Offset(float distance)
         {
             if (distance <= 0)
