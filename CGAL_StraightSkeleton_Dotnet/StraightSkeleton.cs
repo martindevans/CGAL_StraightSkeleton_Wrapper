@@ -42,16 +42,14 @@ namespace CGAL_StraightSkeleton_Dotnet
         {
             _opaqueHandle = opaqueHandle;
 
-            Initialize(borders, spokes, skeleton, out _borders, out _spokes, out _skeleton);
+            _borders = new HashSet<Edge>();
+            _spokes = new HashSet<Edge>();
+            _skeleton = new HashSet<Edge>();
+            Initialize(borders, spokes, skeleton, _borders, _spokes, _skeleton);
         }
 
-        private static void Initialize(IEnumerable<KeyValuePair<Vector2, Vector2>> borders, IEnumerable<KeyValuePair<Vector2, Vector2>> spokes, IEnumerable<KeyValuePair<Vector2, Vector2>> skeleton, out HashSet<Edge> outBorders, out HashSet<Edge> outSpokes, out HashSet<Edge> outSkeleton)
+        private static void Initialize(IEnumerable<KeyValuePair<Vector2, Vector2>> borders, IEnumerable<KeyValuePair<Vector2, Vector2>> spokes, IEnumerable<KeyValuePair<Vector2, Vector2>> skeleton, ICollection<Edge> outBorders, ICollection<Edge> outSpokes, ICollection<Edge> outSkeleton)
         {
-            //Setup result collections
-            outBorders = new HashSet<Edge>();
-            outSkeleton = new HashSet<Edge>();
-            outSpokes = new HashSet<Edge>();
-
             //setup collection of vertices and a way to lazily construct them
             var vertices = new Dictionary<Vector2, Vertex>();
             Func<Vector2, Vertex> getOrCreate = p =>
@@ -78,13 +76,13 @@ namespace CGAL_StraightSkeleton_Dotnet
                 outSkeleton.Add(Edge.Create(getOrCreate(skele.Key), getOrCreate(skele.Value), EdgeType.Skeleton));
         }
 
-        public void CloneGraph(out HashSet<Edge> outBorders, out HashSet<Edge> outSpokes, out HashSet<Edge> outSkeleton)
+        public void CloneGraph(ICollection<Edge> outBorders, ICollection<Edge> outSpokes, ICollection<Edge> outSkeleton)
         {
             Initialize(
                 _borders.Select(a => new KeyValuePair<Vector2, Vector2>(a.Start.Position, a.End.Position)),
                 _spokes.Select(a => new KeyValuePair<Vector2, Vector2>(a.Start.Position, a.End.Position)),
                 _skeleton.Select(a => new KeyValuePair<Vector2, Vector2>(a.Start.Position, a.End.Position)),
-                out outBorders, out outSpokes, out outSkeleton
+                outBorders, outSpokes, outSkeleton
             );
         }
 
