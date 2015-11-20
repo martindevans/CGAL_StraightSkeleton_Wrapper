@@ -11,7 +11,7 @@ namespace CGAL_StraightSkeleton_Dotnet
     {
         private readonly IntPtr _opaqueHandle;
 
-        private readonly HashSet<Edge> _borders;
+        private readonly List<Edge> _borders;
         /// <summary>
         /// Edges around the outside of the shape
         /// </summary>
@@ -20,7 +20,7 @@ namespace CGAL_StraightSkeleton_Dotnet
             get { return _borders; }
         }
 
-        private readonly HashSet<Edge> _spokes;
+        private readonly List<Edge> _spokes;
         /// <summary>
         /// Edges connecting outside of shape to the skeleton
         /// </summary>
@@ -29,7 +29,7 @@ namespace CGAL_StraightSkeleton_Dotnet
             get { return _spokes; }
         }
 
-        private readonly HashSet<Edge> _skeleton;
+        private readonly List<Edge> _skeleton;
         /// <summary>
         /// The spine of the skeleton
         /// </summary>
@@ -38,13 +38,13 @@ namespace CGAL_StraightSkeleton_Dotnet
             get { return _skeleton; }
         }
 
-        private StraightSkeleton(HashSet<Vector2> inputVertices, HashSet<KeyValuePair<Vector2, Vector2>> borders, HashSet<KeyValuePair<Vector2, Vector2>> spokes, HashSet<KeyValuePair<Vector2, Vector2>> skeleton, IntPtr opaqueHandle)
+        private StraightSkeleton(HashSet<Vector2> inputVertices, IEnumerable<KeyValuePair<Vector2, Vector2>> borders, IEnumerable<KeyValuePair<Vector2, Vector2>> spokes, IEnumerable<KeyValuePair<Vector2, Vector2>> skeleton, IntPtr opaqueHandle)
         {
             _opaqueHandle = opaqueHandle;
 
-            _borders = new HashSet<Edge>();
-            _spokes = new HashSet<Edge>();
-            _skeleton = new HashSet<Edge>();
+            _borders = new List<Edge>();
+            _spokes = new List<Edge>();
+            _skeleton = new List<Edge>();
             Initialize(borders, spokes, skeleton, _borders, _spokes, _skeleton);
         }
 
