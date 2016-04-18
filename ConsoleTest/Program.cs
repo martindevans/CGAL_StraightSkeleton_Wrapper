@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using CGAL_StraightSkeleton_Dotnet;
+using PrimitiveSvgBuilder;
 
 namespace ConsoleTest
 {
@@ -16,6 +17,9 @@ namespace ConsoleTest
 
             var ssk = StraightSkeleton.Generate(new Vector2[] {
                 new Vector2(-10, 10),
+                new Vector2(-1, 10),
+                new Vector2(0, 11),
+                new Vector2(1, 10),
                 new Vector2(10, 10),
                 new Vector2(10, -2),
                 new Vector2(5, 0),
@@ -38,36 +42,38 @@ namespace ConsoleTest
             w2.Start();
 
             //Extract data from result
-            var svg = new StringBuilder();
-            svg.Append("<svg width=\"1000\" height=\"1000\"><g transform=\"translate(210, 210)\">");
+            var builder = new SvgBuilder(30);
 
+            //Draw outline
+            foreach (var edge in ssk.Borders)
+            {
+                builder.Circle(edge.Start.Position, 0.2f, "blue");
+                builder.Circle(edge.End.Position, 0.2f, "blue");
+                builder.Line(edge.Start.Position, edge.End.Position, 2, "blue");
+            }
+
+            //Draw offsets
             for (var i = 1; i < 10; i++)
             {
                 var offset = ssk.Offset(i / 2f);
-
                 foreach (var polygon in offset)
-                {
-                    svg.Append("<path fill=\"none\" stroke=\"green\" d=\"");
-                    svg.Append(string.Format("M {0} {1} ", polygon[0].X * 10, polygon[0].Y * 10));
-                    svg.Append(string.Join(" ", polygon.Select(v => string.Format(" L {0} {1} ", v.X * 10, v.Y * 10))));
-                    svg.Append("z\"></path>");
-                }
+                    builder.Outline(polygon, "green");
             }
 
-            svg.Append("<path fill=\"none\" stroke=\"hotpink\" d=\"");
-            //foreach (var edge in ssk.Spokes)
-            //    svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
+            //Draw spokes
+            foreach (var edge in ssk.Spokes)
+                builder.Line(edge.Start.Position, edge.End.Position, 4, "lime");
+
+            //Draw straight skeleton
             foreach (var edge in ssk.Skeleton)
-                svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Start.Position.X * 10, edge.Start.Position.Y * 10, edge.End.Position.X * 10, edge.End.Position.Y * 10));
-            //foreach (var edge in ssk.Borders)
-            //    svg.Append(string.Format("M {0} {1} L{2} {3} ", edge.Key.X * 10, edge.Key.Y * 10, edge.Value.X * 10, edge.Value.Y * 10));
-            svg.Append("\"></path>");
+            {
+                builder.Circle(edge.Start.Position, 0.2f, "hotpink");
+                builder.Circle(edge.End.Position, 0.2f, "hotpink");
+                builder.Line(edge.Start.Position, edge.End.Position, 2, "hotpink");
+            }
 
-            svg.Append("</g></svg>");
-            Console.WriteLine(svg);
-
+            Console.WriteLine(builder);
             Console.Title = string.Format("Elapsed: {0}ms {1}ms", w.ElapsedMilliseconds, w2.ElapsedMilliseconds);
-
             Console.ReadLine();
         }
     }

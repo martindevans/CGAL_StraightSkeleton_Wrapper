@@ -64,7 +64,7 @@ Polygon_2 CreatePolygon(float* vertices, int length)
 	return result;
 }
 
-extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* outStraightSkeleton)
+extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* outStraightSkeleton, Poly* outSpokes)
 {
 	//Construct outer polygon (no holes yet)
 	Polygon_with_holes poly(CreatePolygon(outer->vertices, outer->verticesCount));
@@ -77,27 +77,52 @@ extern "C" __declspec(dllexport) void* GenerateStraightSkeleton(Poly* outer, Pol
 	SsPtr iss = CGAL::create_interior_straight_skeleton_2(poly);
 	Ss& ss = *iss;
 
-	//Create result
+	//Create skeleton result (large enough to hold *all* vertices, we'll trim it later)
 	outStraightSkeleton->verticesCount = ss.size_of_halfedges() * 2 * 2;	// edges * 2 (start and end) * 2 (X and Y)
 	outStraightSkeleton->vertices = new float[outStraightSkeleton->verticesCount];
 
-	//Copy vertex pairs (also measure the longest edge while we're at it)
-	float longest = 0;
-	int index = 0;
+	//Create spoke result  (large enough to hold *all* vertices, we'll trim it later)
+	outSpokes->verticesCount = ss.size_of_halfedges() * 2 * 2;	// edges * 2 (start and end) * 2 (X and Y)
+	outSpokes->vertices = new float[outSpokes->verticesCount];
+
+	//Copy vertex pairs
+	int ssIndex = 0;
+	int bsIndex = 0;
 	for (Halfedge_const_iterator i = ss.halfedges_begin(); i != ss.halfedges_end(); ++i)
 	{
-		auto start = i->vertex()->point();
-		auto end = i->next()->vertex()->point();
+		auto start = i->vertex();
+		auto end = i->opposite()->vertex();
 
-		outStraightSkeleton->vertices[index * 4] = start.x();
-		outStraightSkeleton->vertices[index * 4 + 1] = start.y();
-		outStraightSkeleton->vertices[index * 4 + 2] = end.x();
-		outStraightSkeleton->vertices[index * 4 + 3] = end.y();
+		if (!i->is_bisector())
+			continue;
 
-		longest = fmaxf(sqrtf(powf(end.x() - start.x() + end.y() - start.y(), 2)), longest);
+		auto startPos = start->point();
+		auto endPos = end->point();
 
-		index++;
+		auto startSkele = start->is_skeleton();
+		auto endSkele = end->is_skeleton();
+
+		if (startSkele && endSkele && i->is_inner_bisector())
+		{
+			outStraightSkeleton->vertices[ssIndex * 4] = startPos.x();
+			outStraightSkeleton->vertices[ssIndex * 4 + 1] = startPos.y();
+			outStraightSkeleton->vertices[ssIndex * 4 + 2] = endPos.x();
+			outStraightSkeleton->vertices[ssIndex * 4 + 3] = endPos.y();
+			ssIndex++;
+		}
+		else
+		{
+			outSpokes->vertices[bsIndex * 4] = startPos.x();
+			outSpokes->vertices[bsIndex * 4 + 1] = startPos.y();
+			outSpokes->vertices[bsIndex * 4 + 2] = endPos.x();
+			outSpokes->vertices[bsIndex * 4 + 3] = endPos.y();
+			bsIndex++;
+		}
 	}
+
+	//Set the sizes
+	outStraightSkeleton->verticesCount = ssIndex * 4;
+	outSpokes->verticesCount = bsIndex * 4;
 
 	//Create a handle for the result (effectively "leak" the skeleton out to C#)
 	auto handle = new SkeletonHandle(iss);

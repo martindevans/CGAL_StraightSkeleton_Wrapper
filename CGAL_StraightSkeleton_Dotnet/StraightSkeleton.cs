@@ -141,7 +141,8 @@ namespace CGAL_StraightSkeleton_Dotnet
             var points = CopyData(outer, holes);
 
             //Variable to hold results
-            Poly result;
+            Poly skeletonResult;
+            Poly spokesResult;
             try
             {
                 unsafe
@@ -167,13 +168,13 @@ namespace CGAL_StraightSkeleton_Dotnet
                         if (holePolys.Length > 0)
                         {
                             fixed (Poly* holesPtr = &holePolys[0])
-                                handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, holesPtr, holes.Count, &result));
+                                handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, holesPtr, holes.Count, &skeletonResult, &spokesResult));
                         }
                         else
-                            handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, null, 0, &result));
+                            handle = new IntPtr(GenerateStraightSkeleton(&outerPoly, null, 0, &skeletonResult, &spokesResult));
                     }
 
-                    return ExtractResult(outer, holes, &result, handle);
+                    return ExtractResult(outer, holes, &skeletonResult, &spokesResult, handle);
                 }
             }
             finally
@@ -181,51 +182,67 @@ namespace CGAL_StraightSkeleton_Dotnet
                 unsafe
                 {
                     //We allocate memory in the Result struct (in C++) to store the result data, call this to free up that memory
-                    FreePolygonStructMembers(&result);
+                    FreePolygonStructMembers(&skeletonResult);
+                    FreePolygonStructMembers(&spokesResult);
                 }
             }
         }
 
-        private static unsafe StraightSkeleton ExtractResult(IReadOnlyList<Vector2> outer, IReadOnlyList<IReadOnlyList<Vector2>> holes, Poly* result, IntPtr handle)
+        private static unsafe StraightSkeleton ExtractResult(IReadOnlyList<Vector2> outer, IReadOnlyList<IReadOnlyList<Vector2>> holes, Poly* skeletonResult, Poly* spokesResult, IntPtr handle)
         {
             //Set of all vertices supplied as input
             var inputVertices = new HashSet<Vector2>(outer);
             inputVertices.UnionWith(holes.SelectMany(h => h));
 
-            //An edge is either border (between 2 input points), spoke (input -> skeleton) or skeleton (skeleton -> skeleton)
+            //An edge is either:
+            // - border
+            //   - input -> input
+            // - spoke
+            //   - input -> skeleton
+            //   - input -> spoke
+            //   - spoke -> skeleton
+            // - skeleton
+            //   - skeleton -> skeleton
             var borders = new HashSet<KeyValuePair<Vector2, Vector2>>();
             var spokes = new HashSet<KeyValuePair<Vector2, Vector2>>();
             var skeleton = new HashSet<KeyValuePair<Vector2, Vector2>>();
 
             //Extract skeleton edges
-            for (var i = 0; i < result->VerticesLength / 4; i++)
+            for (var i = 0; i < skeletonResult->VerticesLength / 4; i++)
             {
-                //Two points, which should we use as the start point?
-                var a = new Vector2(result->Vertices[i * 4 + 0], result->Vertices[i * 4 + 1]);
-                var b = new Vector2(result->Vertices[i * 4 + 2], result->Vertices[i * 4 + 3]);
+                skeleton.Add(OrderByHash(
+                    new Vector2(skeletonResult->Vertices[i * 4 + 0], skeletonResult->Vertices[i * 4 + 1]),
+                    new Vector2(skeletonResult->Vertices[i * 4 + 2], skeletonResult->Vertices[i * 4 + 3])
+                ));
+            }
 
-                var ab = inputVertices.Contains(a);
-                var bb = inputVertices.Contains(b);
+            //Extract spokes
+            for (int i = 0; i < spokesResult->VerticesLength / 4; i++)
+            {
+                spokes.Add(OrderByHash(
+                    new Vector2(spokesResult->Vertices[i * 4 + 0], spokesResult->Vertices[i * 4 + 1]),
+                    new Vector2(spokesResult->Vertices[i * 4 + 2], spokesResult->Vertices[i * 4 + 3])
+                ));
+            }
 
-                if (ab && bb)
+            //Extract borders
+            for (int i = 0; i < outer.Count; i++)
+            {
+                borders.Add(OrderByHash(
+                    outer[i],
+                    outer[(i + 1) % outer.Count]
+                ));
+            }
+
+            //Extract borders from holes
+            foreach (var hole in holes)
+            {
+                for (int i = 0; i < hole.Count; i++)
                 {
-                    //Outer->Outer, order by hashcode (so edges are not added twice)
-                    borders.Add(OrderByHash(a, b));
-                }
-                else if (ab & !bb)
-                {
-                    //Spoke, add outer vertex first (so edges are not added twice)
-                    spokes.Add(new KeyValuePair<Vector2, Vector2>(a, b));
-                }
-                else if (bb)
-                {
-                    //Spoke, add outer vertex first (so edges are not added twice)
-                    spokes.Add(new KeyValuePair<Vector2, Vector2>(b, a));
-                }
-                else
-                {
-                    //Skeleton edge, order by hashcode (so edges are not added twice)
-                    skeleton.Add(OrderByHash(a, b));
+                    borders.Add(OrderByHash(
+                        hole[i],
+                        hole[(i + 1) % hole.Count]
+                    ));
                 }
             }
 
@@ -271,7 +288,7 @@ namespace CGAL_StraightSkeleton_Dotnet
         }
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
-        private static extern unsafe void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* result);
+        private static extern unsafe void* GenerateStraightSkeleton(Poly* outer, Poly* holes, int holesCount, Poly* straightSkeleton, Poly* spokesResult);
 
         [DllImport("CGAL_StraightSkeleton_Wrapper", CallingConvention = CallingConvention.Cdecl)]
         private static extern unsafe PolyArray GenerateOffsetPolygon(void* outer, float distance);
